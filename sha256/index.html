@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SHA-256 Hasher — Single File</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#98a1b3;--accent:#7c5cff;--glass:rgba(255,255,255,0.04)}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071025 0%, #001122 100%);color:#e6eef8;padding:28px}
+    .wrap{width:100%;max-width:980px}
+    header{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:14px;padding:18px;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:16px}
+    .panel{background:var(--card);padding:12px;border-radius:10px}
+
+    textarea{width:100%;min-height:160px;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit;resize:vertical}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:10px}
+    button{background:var(--accent);border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+    .small{padding:6px 8px;font-size:13px}
+
+    .results{display:flex;flex-direction:column;gap:10px}
+    .result{background:var(--glass);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);word-break:break-all;font-family:SFMono-Regular,Menlo,Monaco,monospace}
+    .result .meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+
+    .filezone{border:2px dashed rgba(255,255,255,0.03);padding:14px;border-radius:8px;text-align:center;color:var(--muted);cursor:pointer}
+    input[type=file]{display:none}
+
+    footer{margin-top:12px;color:var(--muted);font-size:13px}
+
+    @media (max-width:880px){
+      .grid{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#4de0c0);display:flex;align-items:center;justify-content:center;font-weight:700;color:#041226">S</div>
+      <div>
+        <h1>SHA-256 Hasher</h1>
+        <p class="lead">Compute SHA-256 of text or files — no server, uses Web Crypto API.</p>
+      </div>
+    </header>
+
+    <div class="card grid">
+      <div class="panel">
+        <label style="font-weight:600">Enter text to hash</label>
+        <textarea id="textInput" placeholder="Type or paste text here..."></textarea>
+
+        <div class="controls">
+          <button id="hashTextBtn">Hash Text</button>
+          <button id="clearTextBtn" class="secondary small">Clear</button>
+
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <label style="font-size:13px;color:var(--muted)">Encoding</label>
+            <select id="encodingSelect" style="background:transparent;border:1px solid rgba(255,255,255,0.03);padding:6px;border-radius:6px;color:inherit">
+              <option value="utf-8">UTF-8</option>
+              <option value="utf-16">UTF-16</option>
+            </select>
+          </div>
+        </div>
+
+        <hr style="opacity:0.06;margin:12px 0">
+
+        <label style="font-weight:600">Or drop / choose a file</label>
+        <div id="fileZone" class="filezone" tabindex="0">Drop a file here or <button id="chooseFileBtn" class="secondary small">Choose file</button>
+          <input id="fileInput" type="file" /></div>
+
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <button id="hashFileBtn" class="small">Hash File</button>
+          <div id="fileInfo" style="color:var(--muted);font-size:13px">No file selected</div>
+        </div>
+
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>Results</strong>
+          <div style="display:flex;gap:8px">
+            <button id="copyHex" class="small">Copy Hex</button>
+            <button id="copyB64" class="small">Copy Base64</button>
+          </div>
+        </div>
+
+        <div class="results">
+          <div>
+            <div class="meta" style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:13px;color:var(--muted)">SHA-256 (hex)</div>
+              <div style="font-size:12px;color:var(--muted)">Length: <span id="hexLen">-</span></div>
+            </div>
+            <div id="hexResult" class="result">-</div>
+          </div>
+
+          <div>
+            <div class="meta" style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:13px;color:var(--muted)">SHA-256 (base64)</div>
+              <div style="font-size:12px;color:var(--muted)">Length: <span id="b64Len">-</span></div>
+            </div>
+            <div id="b64Result" class="result">-</div>
+          </div>
+
+          <div id="status" style="color:var(--muted);font-size:13px">Ready</div>
+        </div>
+
+        <footer>Uses <strong>window.crypto.subtle.digest('SHA-256')</strong>. Works in modern browsers.</footer>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Utility helpers
+function toHex(buffer){
+  const bytes = new Uint8Array(buffer);
+  let hex = '';
+  for(let b of bytes){
+    hex += b.toString(16).padStart(2,'0');
+  }
+  return hex;
+}
+function toBase64(buffer){
+  // Convert ArrayBuffer to binary string first
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunk = 0x8000; // chunk size to avoid stack limits
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function computeSHA256ArrayBuffer(ab){
+  const digest = await crypto.subtle.digest('SHA-256', ab);
+  return digest; // ArrayBuffer
+}
+
+async function computeHashOfText(text, encoding='utf-8'){
+  const encoder = encoding === 'utf-16' ? new TextEncoder('utf-16') : new TextEncoder();
+  const data = encoder.encode(text);
+  return computeSHA256ArrayBuffer(data.buffer);
+}
+
+// DOM
+const textInput = document.getElementById('textInput');
+const hashTextBtn = document.getElementById('hashTextBtn');
+const clearTextBtn = document.getElementById('clearTextBtn');
+const encodingSelect = document.getElementById('encodingSelect');
+
+const fileInput = document.getElementById('fileInput');
+const chooseFileBtn = document.getElementById('chooseFileBtn');
+const fileZone = document.getElementById('fileZone');
+const hashFileBtn = document.getElementById('hashFileBtn');
+const fileInfo = document.getElementById('fileInfo');
+
+const hexResult = document.getElementById('hexResult');
+const b64Result = document.getElementById('b64Result');
+const hexLen = document.getElementById('hexLen');
+const b64Len = document.getElementById('b64Len');
+const status = document.getElementById('status');
+const copyHex = document.getElementById('copyHex');
+const copyB64 = document.getElementById('copyB64');
+
+let selectedFile = null;
+
+// Text actions
+hashTextBtn.addEventListener('click', async ()=>{
+  const txt = textInput.value || '';
+  if(txt.length === 0){
+    status.textContent = 'Please enter text to hash.';
+    return;
+  }
+  try{
+    status.textContent = 'Hashing text...';
+    const enc = encodingSelect.value;
+    const digest = await computeHashOfText(txt, enc);
+    showDigest(digest);
+    status.textContent = 'Done — hashed text.';
+  }catch(err){
+    status.textContent = 'Error: ' + (err.message || err);
+  }
+});
+
+clearTextBtn.addEventListener('click', ()=>{
+  textInput.value = '';
+  status.textContent = 'Cleared text.';
+});
+
+// File actions
+chooseFileBtn.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', ()=>{
+  if(fileInput.files.length) selectFile(fileInput.files[0]);
+});
+
+fileZone.addEventListener('dragover', e=>{ e.preventDefault(); fileZone.style.borderColor = 'rgba(255,255,255,0.12)'; });
+fileZone.addEventListener('dragleave', e=>{ fileZone.style.borderColor = 'rgba(255,255,255,0.03)'; });
+fileZone.addEventListener('drop', e=>{
+  e.preventDefault(); fileZone.style.borderColor = 'rgba(255,255,255,0.03)';
+  if(e.dataTransfer.files && e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+});
+
+function selectFile(f){
+  selectedFile = f;
+  fileInfo.textContent = `${f.name} — ${formatBytes(f.size)}`;
+  status.textContent = 'File selected.';
+}
+
+hashFileBtn.addEventListener('click', async ()=>{
+  if(!selectedFile){ status.textContent = 'No file selected.'; return; }
+  try{
+    status.textContent = 'Reading file...';
+    const ab = await readFileAsArrayBuffer(selectedFile);
+    status.textContent = 'Computing SHA-256...';
+    const digest = await computeSHA256ArrayBuffer(ab);
+    showDigest(digest);
+    status.textContent = 'Done — hashed file.';
+  }catch(err){ status.textContent = 'Error: ' + (err.message || err); }
+});
+
+function readFileAsArrayBuffer(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result);
+    r.onerror = ()=>rej(r.error);
+    r.readAsArrayBuffer(file);
+  });
+}
+
+function formatBytes(bytes){
+  if(bytes === 0) return '0 B';
+  const k = 1024, dm = 2, sizes = ['B','KB','MB','GB','TB'];
+  const i = Math.floor(Math.log(bytes)/Math.log(k));
+  return parseFloat((bytes/Math.pow(k,i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+function showDigest(digestBuffer){
+  const hex = toHex(digestBuffer);
+  const b64 = toBase64(digestBuffer);
+  hexResult.textContent = hex;
+  b64Result.textContent = b64;
+  hexLen.textContent = hex.length;
+  b64Len.textContent = b64.length;
+}
+
+// Copy buttons
+copyHex.addEventListener('click', ()=>{
+  const txt = hexResult.textContent;
+  if(!txt || txt === '-') return status.textContent = 'Nothing to copy.';
+  navigator.clipboard.writeText(txt).then(()=>status.textContent='Hex copied to clipboard.');
+});
+copyB64.addEventListener('click', ()=>{
+  const txt = b64Result.textContent;
+  if(!txt || txt === '-') return status.textContent = 'Nothing to copy.';
+  navigator.clipboard.writeText(txt).then(()=>status.textContent='Base64 copied to clipboard.');
+});
+
+// Keyboard shortcut: Ctrl+Enter to hash text
+textInput.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+    hashTextBtn.click();
+  }
+});
+
+// Initialize with sample text
+textInput.value = 'Hello, SHA-256!';
+
+</script>
+</body>
+</html>
